@@ -9,17 +9,22 @@ type GeminiRequest = {
   model: string
   messages: Message[]
   systemInstruction?: string
+  generationConfig: {
+    topP: number
+    topK: number
+    temperature: number
+    maxOutputTokens: number
+  }
+  safety: string
 }
 
 export const runtime = 'edge'
+export const preferredRegion = ['cle1', 'iad1', 'pdx1', 'sfo1', 'sin1', 'syd1', 'hnd1', 'kix1']
 
 const geminiApiKey = process.env.GEMINI_API_KEY as string
 const geminiApiBaseUrl = process.env.GEMINI_API_BASE_URL as string
-const mode = process.env.NEXT_PUBLIC_BUILD_MODE
 
 export async function POST(req: NextRequest) {
-  if (mode === 'export') return new NextResponse('Not available under static deployment')
-
   const searchParams = req.nextUrl.searchParams
   const token = searchParams.get('token')
 
@@ -31,13 +36,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages = [], model, systemInstruction } = (await req.json()) as GeminiRequest
+    const { messages = [], model, systemInstruction, generationConfig, safety } = (await req.json()) as GeminiRequest
     const result = await chat({
       messages,
       model,
       systemInstruction,
       apiKey: geminiApiKey,
       baseUrl: geminiApiBaseUrl,
+      generationConfig,
+      safety,
     })
     const stream = GoogleGenerativeAIStream(result)
     return new StreamingTextResponse(stream)

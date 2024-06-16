@@ -15,7 +15,7 @@ export default async function textStream(options: {
   onFinish: () => void
   sentenceLength?: number
 }) {
-  const { readable, locale, onMessage, onStatement, onFinish, sentenceLength = 20 } = options
+  const { readable, locale, onMessage, onStatement, onFinish, sentenceLength = 100 } = options
   const reader = readable.getReader()
 
   const decoder = new TextDecoder('utf-8')
@@ -46,7 +46,7 @@ export default async function textStream(options: {
     // animate response to make it looks smooth
     const animateResponseText = () => {
       if (remainText.length > 0) {
-        const fetchCount = Math.max(1, Math.round(remainText.length / 60))
+        const fetchCount = Math.max(1, Math.round(remainText.length / 90))
         const fetchText = remainText.slice(0, fetchCount)
         remainText = remainText.slice(fetchCount)
         onMessage(fetchText)
@@ -54,6 +54,8 @@ export default async function textStream(options: {
       } else {
         if (chunks.length > 0) {
           handleRemainingText()
+        } else {
+          onFinish()
         }
       }
     }
@@ -64,8 +66,11 @@ export default async function textStream(options: {
     let { value, done } = await reader.read()
     if (done) {
       if (buffer) onStatement(buffer)
-      if (chunks.length > 0) handleRemainingText()
-      onFinish()
+      if (chunks.length > 0) {
+        handleRemainingText()
+      } else {
+        onFinish()
+      }
       break
     }
     // stream: true is important here, fix the bug of incomplete line

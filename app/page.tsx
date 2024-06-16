@@ -1,7 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useRef, useState, useMemo, KeyboardEvent, useEffect, useCallback, useLayoutEffect } from 'react'
-import { EdgeSpeech, SpeechRecognition } from '@xiangfa/polly'
+import { useRef, useState, useMemo, KeyboardEvent, useEffect, useCallback } from 'react'
+import { EdgeSpeech, getRecordMineType } from '@xiangfa/polly'
 import SiriWave from 'siriwave'
 import {
   MessageCircleHeart,
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import ThemeToggle from '@/components/ThemeToggle'
-import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import MessageItem from '@/components/MessageItem'
 import ErrorMessageItem from '@/components/ErrorMessageItem'
@@ -26,16 +25,20 @@ import { useMessageStore } from '@/store/chat'
 import { useAttachmentStore } from '@/store/attachment'
 import { useSettingStore } from '@/store/setting'
 import chat, { type RequestProps } from '@/utils/chat'
-import { summarizePrompt, getVoiceModelPrompt, getSummaryPrompt } from '@/utils/prompt'
+import { summarizePrompt, getVoiceModelPrompt, getSummaryPrompt, getTalkAudioPrompt } from '@/utils/prompt'
+import { AudioRecorder } from '@/utils/Recorder'
 import AudioStream from '@/utils/AudioStream'
 import PromiseQueue from '@/utils/PromiseQueue'
 import textStream, { streamToText } from '@/utils/textStream'
 import { encodeToken } from '@/utils/signature'
-import { formatTime } from '@/utils/common'
+import type { FileManagerOptions } from '@/utils/FileManager'
+import { fileUpload, imageUpload } from '@/utils/upload'
+import { formatTime, readFileAsDataURL } from '@/utils/common'
 import { cn } from '@/utils'
-import { Model } from '@/constant/model'
+import { Model, OldVisionModel, OldTextModel } from '@/constant/model'
+import mimeType from '@/constant/attachment'
 import { customAlphabet } from 'nanoid'
-import { isFunction } from 'lodash-es'
+import { isFunction, findIndex, pick, isUndefined } from 'lodash-es'
 
 interface AnswerParams {
   messages: Message[]
@@ -44,7 +47,7 @@ interface AnswerParams {
   onError?: (error: string, code?: number) => void
 }
 
-const buildMode = process.env.NEXT_PUBLIC_BUILD_MODE as string
+const BUILD_MODE = process.env.NEXT_PUBLIC_BUILD_MODE as string
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 8)
 
 const AssistantRecommend = dynamic(() => import('@/components/AssistantRecommend'))
@@ -57,7 +60,7 @@ export default function Home() {
   const scrollAreaBottomRef = useRef<HTMLDivElement>(null)
   const audioStreamRef = useRef<AudioStream>()
   const edgeSpeechRef = useRef<EdgeSpeech>()
-  const speechRecognitionRef = useRef<SpeechRecognition>()
+  const audioRecordRef = useRef<AudioRecorder>()
   const speechQueue = useRef<PromiseQueue>()
   const messagesRef = useRef(useMessageStore.getState().messages)
   const messageStore = useMessageStore()
@@ -68,12 +71,10 @@ export default function Home() {
   const [content, setContent] = useState<string>('')
   const [subtitle, setSubtitle] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
-  const [isRecording, setIsRecording] = useState<boolean>(false)
-  const [recordTimer, setRecordTimer] = useState<NodeJS.Timeout>()
   const [recordTime, setRecordTime] = useState<number>(0)
   const [settingOpen, setSetingOpen] = useState<boolean>(false)
   const [speechSilence, setSpeechSilence] = useState<boolean>(false)
-  const [disableSpeechRecognition, setDisableSpeechRecognition] = useState<boolean>(false)
+  const [isRecording, setIsRecording] = useState<boolean>(false)
   const [status, setStatus] = useState<'thinkng' | 'silence' | 'talking'>('silence')
   const statusText = useMemo(() => {
     switch (status) {
@@ -85,16 +86,14 @@ export default function Home() {
         return t('status.thinking')
     }
   }, [status, t])
-  const isVisionModel = useMemo(() => {
-    return [Model['Gemini Pro Vision'], Model['Gemini 1.0 Pro Vision']].includes(settingStore.model as Model)
+  const isOldVisionModel = useMemo(() => {
+    return OldVisionModel.includes(settingStore.model as Model)
   }, [settingStore.model])
   const supportAttachment = useMemo(() => {
-    return [
-      Model['Gemini 1.5 Pro'],
-      Model['Gemini 1.5 Flash'],
-      Model['Gemini Pro Vision'],
-      Model['Gemini 1.0 Pro Vision'],
-    ].includes(settingStore.model as Model)
+    return !OldTextModel.includes(settingStore.model as Model)
+  }, [settingStore.model])
+  const supportSpeechRecognition = useMemo(() => {
+    return !OldTextModel.includes(settingStore.model as Model) && !OldVisionModel.includes(settingStore.model as Model)
   }, [settingStore.model])
   const isUploading = useMemo(() => {
     for (const file of attachmentStore.files) {
@@ -149,13 +148,16 @@ export default function Home() {
 
   const fetchAnswer = useCallback(async ({ messages, model, onResponse, onError }: AnswerParams) => {
     const { systemInstruction } = useMessageStore.getState()
-    const { apiKey, apiProxy, password } = useSettingStore.getState()
+    const { apiKey, apiProxy, password, topP, topK, temperature, maxOutputTokens, safety } = useSettingStore.getState()
+    const generationConfig: RequestProps['generationConfig'] = { topP, topK, temperature, maxOutputTokens }
     setErrorMessage('')
     if (apiKey !== '') {
       const config: RequestProps = {
         messages,
         apiKey: apiKey,
         model,
+        generationConfig,
+        safety,
       }
       if (apiProxy) config.baseUrl = apiProxy
       if (systemInstruction) config.systemInstruction = systemInstruction
@@ -186,12 +188,16 @@ export default function Home() {
     } else {
       const token = encodeToken(password)
       const config: {
-        messages: Message[]
+        messages: Pick<Message, 'role' | 'parts'>[]
         model: string
         systemInstruction?: string
+        generationConfig: RequestProps['generationConfig']
+        safety: string
       } = {
-        messages,
+        messages: messages.map((item) => pick(item, ['role', 'parts'])),
         model,
+        generationConfig,
+        safety,
       }
       if (systemInstruction) config.systemInstruction = systemInstruction
       const response = await fetch(`/api/chat?token=${token}`, {
@@ -270,6 +276,9 @@ export default function Home() {
           }
         },
         onFinish: async () => {
+          if (talkMode === 'voice') {
+            setStatus('silence')
+          }
           scrollToBottom()
           saveMessage()
           if (maxHistoryLength > 0) {
@@ -292,14 +301,15 @@ export default function Home() {
 
   const handleSubmit = useCallback(
     async (text: string): Promise<void> => {
-      if (content === '') return Promise.reject(false)
+      if (text === '') return Promise.reject(false)
       const { talkMode, model } = useSettingStore.getState()
       const { files, clear: clearAttachment } = useAttachmentStore.getState()
       const { summary, add: addMessage } = useMessageStore.getState()
       const messagePart: Message['parts'] = []
+      let talkAudioMode: boolean = false
       if (files.length > 0) {
         for (const file of files) {
-          if (isVisionModel) {
+          if (isOldVisionModel) {
             if (file.preview) {
               messagePart.push({
                 inlineData: {
@@ -320,25 +330,39 @@ export default function Home() {
           }
         }
       }
-      messagePart.push({ text })
+      if (text.startsWith('data:audio/webm;base64,') || text.startsWith('data:audio/mp4;base64,')) {
+        const audioData = text.substring(5).split(';base64,')
+        messagePart.push({
+          inlineData: {
+            mimeType: audioData[0],
+            data: audioData[1],
+          },
+        })
+        talkAudioMode = true
+      } else {
+        messagePart.push({ text })
+      }
       const newUserMessage: Message = {
         id: nanoid(),
         role: 'user',
         parts: messagePart,
-        attachments: isVisionModel ? [] : files,
+        attachments: isOldVisionModel ? [] : files,
       }
       addMessage(newUserMessage)
       const newModelMessage: Message = { id: nanoid(), role: 'model', parts: [{ text: '' }] }
       addMessage(newModelMessage)
       let messages: Message[] = [...messagesRef.current.slice(0, -1)]
-      if (summary.content !== '') {
-        const newMessages = messages.filter((item) => !summary.ids.includes(item.id))
-        messages = [...getSummaryPrompt(summary.content), ...newMessages]
+      if (talkAudioMode) {
+        messages = getTalkAudioPrompt(messages)
       }
       if (talkMode === 'voice') {
         messages = getVoiceModelPrompt(messages)
         setStatus('thinkng')
         setSubtitle('')
+      }
+      if (summary.content !== '') {
+        const newMessages = messages.filter((item) => !summary.ids.includes(item.id))
+        messages = [...getSummaryPrompt(summary.content), ...newMessages]
       }
       setContent('')
       clearAttachment()
@@ -354,28 +378,24 @@ export default function Home() {
         },
       })
     },
-    [content, isVisionModel, fetchAnswer, handleResponse, handleError],
+    [isOldVisionModel, fetchAnswer, handleResponse, handleError],
   )
 
-  const handleResubmit = useCallback(async () => {
-    const messages = [...messagesRef.current]
-    const lastMessage = messages.pop()
-    const { model } = useSettingStore.getState()
-    const { add: addMessage, update: updateMessage } = useMessageStore.getState()
-    if (lastMessage?.role === 'model') {
-      lastMessage.parts = [{ text: '' }]
-      updateMessage(lastMessage.id, lastMessage)
-      await fetchAnswer({
-        messages: messagesRef.current,
-        model,
-        onResponse: (stream) => {
-          handleResponse(stream, lastMessage)
-        },
-        onError: (message, code) => {
-          handleError(message, code)
-        },
-      })
-    } else {
+  const handleResubmit = useCallback(
+    async (id: string) => {
+      const { model } = useSettingStore.getState()
+      const { add: addMessage, revoke: rovokeMessage } = useMessageStore.getState()
+      if (id !== 'error') {
+        const messageIndex = findIndex(messagesRef.current, { id })
+        if (messageIndex !== -1) {
+          if (messagesRef.current[messageIndex].role === 'model') {
+            rovokeMessage(id)
+          } else {
+            const nextMessage = messagesRef.current[messageIndex + 1]
+            if (nextMessage) rovokeMessage(messagesRef.current[messageIndex + 1].id)
+          }
+        }
+      }
       const newModelMessage: Message = { id: nanoid(), role: 'model', parts: [{ text: '' }] }
       addMessage(newModelMessage)
       await fetchAnswer({
@@ -388,8 +408,9 @@ export default function Home() {
           handleError(message, code)
         },
       })
-    }
-  }, [fetchAnswer, handleResponse, handleError])
+    },
+    [fetchAnswer, handleResponse, handleError],
+  )
 
   const handleCleanMessage = useCallback(() => {
     const { clear: clearMessage } = useMessageStore.getState()
@@ -405,7 +426,7 @@ export default function Home() {
   const checkAccessStatus = useCallback(() => {
     const { isProtected, password, apiKey } = useSettingStore.getState()
     const isProtectedMode = isProtected && password === '' && apiKey === ''
-    const isStaticMode = buildMode === 'export' && apiKey === ''
+    const isStaticMode = BUILD_MODE === 'export' && apiKey === ''
     if (isProtectedMode || isStaticMode) {
       setSetingOpen(true)
       return false
@@ -414,39 +435,37 @@ export default function Home() {
     }
   }, [])
 
-  const startRecordTime = useCallback(() => {
-    const intervalTimer = setInterval(() => {
-      setRecordTime((time) => time + 1)
-    }, 1000)
-    setRecordTimer(intervalTimer)
-  }, [])
-
-  const endRecordTimer = useCallback(() => {
-    clearInterval(recordTimer)
-  }, [recordTimer])
-
   const handleRecorder = useCallback(() => {
     if (!checkAccessStatus()) return false
     if (!audioStreamRef.current) {
       audioStreamRef.current = new AudioStream()
     }
-    if (speechRecognitionRef.current) {
-      const { talkMode } = useSettingStore.getState()
-      if (isRecording) {
-        speechRecognitionRef.current.stop()
-        endRecordTimer()
-        setRecordTime(0)
-        if (talkMode === 'voice') {
-          handleSubmit(speechRecognitionRef.current.text)
-        }
-        setIsRecording(false)
+    if (!audioRecordRef.current || audioRecordRef.current.autoStop !== settingStore.autoStopRecord) {
+      audioRecordRef.current = new AudioRecorder({
+        autoStop: settingStore.autoStopRecord,
+        onStart: () => {
+          setIsRecording(true)
+        },
+        onTimeUpdate: (time) => {
+          setRecordTime(time)
+        },
+        onFinish: async (audioData) => {
+          const recordType = getRecordMineType()
+          const file = new File([audioData], `${Date.now()}.${recordType.extension}`, { type: recordType.mineType })
+          const recordDataURL = await readFileAsDataURL(file)
+          handleSubmit(recordDataURL)
+          setIsRecording(false)
+        },
+      })
+      audioRecordRef.current.start()
+    } else {
+      if (audioRecordRef.current.isRecording) {
+        audioRecordRef.current.stop()
       } else {
-        speechRecognitionRef.current.start()
-        setIsRecording(true)
-        startRecordTime()
+        audioRecordRef.current.start()
       }
     }
-  }, [checkAccessStatus, handleSubmit, startRecordTime, endRecordTimer, isRecording])
+  }, [settingStore.autoStopRecord, checkAccessStatus, handleSubmit])
 
   const handleStopTalking = useCallback(() => {
     setSpeechSilence(true)
@@ -464,7 +483,54 @@ export default function Home() {
         handleSubmit(content)
       }
     },
-    [content, isRecording, handleSubmit, checkAccessStatus],
+    [content, handleSubmit, checkAccessStatus, isRecording],
+  )
+
+  const handleFileUpload = useCallback(
+    async (files: FileList | null) => {
+      if (!supportAttachment) return false
+      if (!checkAccessStatus()) return false
+
+      const fileList: File[] = []
+
+      if (files) {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          if (mimeType.includes(file.type)) {
+            fileList.push(file)
+          }
+        }
+
+        const { add: addAttachment, update: updateAttachment } = useAttachmentStore.getState()
+        if (isOldVisionModel) {
+          await imageUpload({ files: fileList, addAttachment, updateAttachment })
+        } else {
+          const { apiKey, apiProxy, uploadProxy, password } = useSettingStore.getState()
+          const options: FileManagerOptions =
+            apiKey !== ''
+              ? { apiKey, baseUrl: apiProxy, uploadUrl: uploadProxy }
+              : { token: encodeToken(password), uploadUrl: uploadProxy }
+
+          await fileUpload({ files: fileList, fileManagerOptions: options, addAttachment, updateAttachment })
+        }
+      }
+    },
+    [supportAttachment, isOldVisionModel, checkAccessStatus],
+  )
+
+  const handlePaste = useCallback(
+    async (ev: React.ClipboardEvent<HTMLDivElement>) => {
+      await handleFileUpload(ev.clipboardData?.files)
+    },
+    [handleFileUpload],
+  )
+
+  const handleDrop = useCallback(
+    async (ev: React.DragEvent<HTMLDivElement>) => {
+      ev.preventDefault()
+      await handleFileUpload(ev.dataTransfer?.files)
+    },
+    [handleFileUpload],
   )
 
   const initAssistant = useCallback((prompt: string) => {
@@ -480,20 +546,6 @@ export default function Home() {
   }, [messagesRef.current.length, scrollToBottom])
 
   useEffect(() => {
-    try {
-      speechRecognitionRef.current = new SpeechRecognition({
-        locale: settingStore.sttLang,
-        onUpdate: (text) => {
-          setContent(text)
-        },
-      })
-    } catch (err) {
-      console.error(err)
-      setDisableSpeechRecognition(true)
-    }
-  }, [settingStore.sttLang])
-
-  useEffect(() => {
     const setting = useSettingStore.getState()
     if (setting.ttsLang !== '') {
       const edgeSpeech = new EdgeSpeech({ locale: setting.ttsLang })
@@ -505,18 +557,25 @@ export default function Home() {
     }
   }, [settingStore.ttsLang])
 
-  useLayoutEffect(() => {
-    const instance = new SiriWave({
-      container: siriWaveRef.current!,
-      style: 'ios9',
-      speed: 0.04,
-      amplitude: 0.1,
-      width: window.innerWidth,
-      height: window.innerHeight / 5,
-    })
-    setSiriWave(instance)
+  useEffect(() => {
+    const { talkMode } = useSettingStore.getState()
+    let instance: SiriWave
+    if (talkMode === 'chat') {
+      instance = new SiriWave({
+        container: siriWaveRef.current!,
+        style: 'ios9',
+        speed: 0.04,
+        amplitude: 0.1,
+        width: window.innerWidth,
+        height: window.innerHeight / 5,
+      })
+      setSiriWave(instance)
+    }
+
     return () => {
-      instance.dispose()
+      if (talkMode === 'chat' && instance) {
+        instance.dispose()
+      }
     }
   }, [])
 
@@ -529,7 +588,9 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-1">
           <Button title={t('github')} variant="ghost" size="icon" className="h-8 w-8">
-            <Github className="h-5 w-5" onClick={() => window.open('https://github.com/Amery2010/TalkWithGemini')} />
+            <a href="https://github.com/Amery2010/TalkWithGemini" target="_blank">
+              <Github className="h-5 w-5" />
+            </a>
           </Button>
           <ThemeToggle />
           <Button
@@ -558,30 +619,30 @@ export default function Home() {
               key={msg.id}
             >
               <div className="flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80">
-                <MessageItem {...msg} />
+                <MessageItem {...msg} onRegenerate={handleResubmit} />
               </div>
             </div>
           ))}
           {errorMessage !== '' ? (
             <div className="group text-slate-500 transition-colors last:text-slate-800 hover:text-slate-800 dark:last:text-slate-400 dark:hover:text-slate-400 max-sm:hover:bg-transparent">
               <div className="flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80">
-                <ErrorMessageItem content={errorMessage} />
+                <ErrorMessageItem content={errorMessage} onRegenerate={() => handleResubmit('error')} />
               </div>
             </div>
           ) : null}
           {content !== '' ? (
             <div className="group text-slate-500 transition-colors last:text-slate-800 hover:text-slate-800 dark:last:text-slate-400 dark:hover:text-slate-400 max-sm:hover:bg-transparent">
               <div className="flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80">
-                <MessageItem id="tmp" role="user" parts={[{ text: content }]} />
+                <MessageItem id="preview" role="user" parts={[{ text: content }]} />
               </div>
             </div>
           ) : null}
           {messageStore.messages.length > 0 ? (
             <div className="my-2 flex h-4 justify-center text-xs text-slate-400 duration-300 dark:text-slate-600">
-              <span className="mx-2 cursor-pointer hover:text-slate-500" onClick={() => handleResubmit()}>
+              {/* <span className="mx-2 cursor-pointer hover:text-slate-500" onClick={() => handleResubmit()}>
                 {t('regenerateAnswer')}
               </span>
-              <Separator orientation="vertical" />
+              <Separator orientation="vertical" /> */}
               <span className="mx-2 cursor-pointer hover:text-slate-500" onClick={() => handleCleanMessage()}>
                 {t('clearChatContent')}
               </span>
@@ -590,18 +651,24 @@ export default function Home() {
         </div>
       )}
       <div ref={scrollAreaBottomRef}></div>
-      <div className="fixed bottom-0 flex w-full max-w-screen-md items-end gap-2 p-4 pb-8 max-sm:p-2 max-sm:pb-3 landscape:max-md:pb-4">
-        {!disableSpeechRecognition ? (
+      <div className="fixed bottom-0 flex w-full max-w-screen-md items-end gap-2 bg-background p-4 pb-8 max-sm:p-2 max-sm:pb-3 landscape:max-md:pb-4">
+        {supportSpeechRecognition ? (
           <Button title={t('voiceMode')} variant="secondary" size="icon" onClick={() => updateTalkMode('voice')}>
             <AudioLines />
           </Button>
         ) : null}
-        <div className="relative w-full rounded-md border border-input bg-[hsl(var(--background))] pt-2">
+        <div
+          className="relative w-full rounded-md border border-input bg-[hsl(var(--background))] pt-2"
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={(ev) => ev.preventDefault()}
+        >
           <AttachmentArea className="m-2 mt-0 max-h-32 overflow-y-auto border-b border-dashed pb-2" />
           <textarea
+            autoFocus
             className={cn(
               'h-auto max-h-[120px] w-full resize-none border-none bg-transparent px-2 text-sm leading-6 transition-[height] focus-visible:outline-none',
-              disableSpeechRecognition ? 'pr-9' : 'pr-[72px]',
+              !supportSpeechRecognition ? 'pr-9' : 'pr-[72px]',
             )}
             style={{ height: textareaHeight > 24 ? `${textareaHeight}px` : 'auto' }}
             value={content}
@@ -619,16 +686,16 @@ export default function Home() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="box-border flex h-8 w-8 cursor-pointer items-center justify-center rounded-full p-1.5 text-slate-800 hover:bg-secondary/80 dark:text-slate-600">
-                      <FileUploader />
+                      <FileUploader beforeUpload={() => checkAccessStatus()} />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="mb-1 max-w-36">
-                    {isVisionModel ? t('imageUploadTooltip') : t('uploadTooltip')}
+                    {isOldVisionModel ? t('imageUploadTooltip') : t('uploadTooltip')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             ) : null}
-            {!disableSpeechRecognition ? (
+            {supportSpeechRecognition ? (
               <TooltipProvider>
                 <Tooltip open={isRecording}>
                   <TooltipTrigger asChild>
@@ -639,8 +706,13 @@ export default function Home() {
                       <Mic className={isRecording ? 'animate-pulse' : ''} />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="mb-1 px-2 py-1 text-center font-mono text-red-500">
-                    {formatTime(recordTime)}
+                  <TooltipContent
+                    className={cn(
+                      'mb-1 px-2 py-1 text-center',
+                      isUndefined(audioRecordRef.current?.isRecording) ? '' : 'font-mono text-red-500',
+                    )}
+                  >
+                    {isUndefined(audioRecordRef.current?.isRecording) ? t('startRecording') : formatTime(recordTime)}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -716,7 +788,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <Setting open={settingOpen} hiddenTalkPanel={disableSpeechRecognition} onClose={() => setSetingOpen(false)} />
+      <Setting open={settingOpen} hiddenTalkPanel={!supportSpeechRecognition} onClose={() => setSetingOpen(false)} />
     </main>
   )
 }

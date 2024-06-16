@@ -3,7 +3,6 @@
   "status": {
     "thinking": "Thingking"
   },
-  "regenerateAnswer": "Regenerate answer",
   "clearChatContent": "Clear chat content",
   "chatMode": "Chat Mode",
   "voiceMode": "Voice Mode",
@@ -18,6 +17,8 @@
   "geminiKeyPlaceholder": "Please enter your Gemini key",
   "apiProxyUrl": "API Proxy Url",
   "apiProxyUrlPlaceholder": "Please enter API proxy url (optional)",
+  "uploadProxyUrl": "File upload proxy URL",
+  "uploadProxyUrlPlaceholder": "Please enter the file upload proxy URL (optional)",
   "followTheSystem": "Follow the system",
   "speechRecognition": "Speech Recognition",
   "speechSynthesis": "Speech Synthesis",
@@ -46,5 +47,23 @@
   "defaultModel": "Default Model",
   "selectDefaultModel": "Please select default model",
   "uploadTooltip": "Upload files, supports images, audios, videos, and text documents",
-  "imageUploadTooltip": "Support upload images"
+  "imageUploadTooltip": "Support upload images",
+  "resend": "Resend",
+  "regenerate": "Rethink",
+  "edit": "Edit",
+  "delete": "Delete",
+  "speak": "Reading aloud",
+  "modelParams": "Model parameters",
+  "temperature": "Randomness",
+  "maxOutputTokens": "Limit of one response per time",
+  "safety": "Blocking level",
+  "default": "Default",
+  "none": "None",
+  "low": "Low",
+  "middle": "Middle",
+  "high": "High",
+  "pwaInstall": "Install browser application (PWA)",
+  "autoStopRecord": "Automatically end recording",
+  "settingEnable": "Enabled",
+  "settingDisable": "Disabled"
 }

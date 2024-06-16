@@ -19,6 +19,13 @@ declare global {
     talkMode: 'chat' | 'voice'
     maxHistoryLength: number
     assistantIndexUrl: string
+    uploadProxy: string
+    topP: number
+    topK: number
+    temperature: number
+    maxOutputTokens: number
+    safety: string
+    autoStopRecord: boolean
   }
 
   interface Assistant {

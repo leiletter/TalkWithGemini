@@ -3,7 +3,6 @@
   "status": {
     "thinking": "Pensando"
   },
-  "regenerateAnswer": "Regenerar resposta",
   "clearChatContent": "Limpar conteúdo do chat",
   "chatMode": "Modo de chat",
   "voiceMode": "Modo de voz",
@@ -18,6 +17,8 @@
   "geminiKeyPlaceholder": "Por favor, insira sua chave Gemini",
   "apiProxyUrl": "URL de proxy da API",
   "apiProxyUrlPlaceholder": "Por favor, insira a URL de proxy da API (opcional)",
+  "uploadProxyUrl": "URL do proxy de upload de arquivos",
+  "uploadProxyUrlPlaceholder": "Por favor, insira a URL do proxy de upload de arquivos (opcional)",
   "followTheSystem": "Seguir o sistema",
   "speechRecognition": "Reconhecimento de fala",
   "speechSynthesis": "Síntese de fala",
@@ -44,5 +45,23 @@
   "llmModel": "LLM Modelo",
   "voiceServer": "Serviço de voz",
   "uploadTooltip": "Carregar arquivos, suporta imagens, áudio, vídeos e documentos de texto",
-  "imageUploadTooltip": "Suporte para upload de imagens"
+  "imageUploadTooltip": "Suporte para upload de imagens",
+  "resend": "Reenviar",
+  "regenerate": "Repensar",
+  "edit": "Editar",
+  "delete": "Excluir",
+  "speak": "Leitura em voz alta",
+  "modelParams": "Parâmetros do modelo",
+  "temperature": "Aleatoriedade",
+  "maxOutputTokens": "Limite de uma resposta por vez",
+  "safety": "Nível de bloqueio",
+  "default": "Padrão",
+  "none": "Nada",
+  "low": "Baixo",
+  "middle": "Médio",
+  "high": "Alto",
+  "pwaInstall": "Instalar aplicativo de navegador (PWA)",
+  "autoStopRecord": "Encerrar a gravação automaticamente",
+  "settingEnable": "Ativado",
+  "settingDisable": "Desativado"
 }

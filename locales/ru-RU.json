@@ -3,7 +3,6 @@
   "status": {
     "thinking": "Думает"
   },
-  "regenerateAnswer": "Сгенерировать ответ заново",
   "clearChatContent": "Очистить содержимое чата",
   "chatMode": "Режим чата",
   "voiceMode": "Голосовой режим",
@@ -18,6 +17,8 @@
   "geminiKeyPlaceholder": "Пожалуйста, введите свой ключ Gemini",
   "apiProxyUrl": "URL прокси API",
   "apiProxyUrlPlaceholder": "Пожалуйста, введите URL прокси API (по желанию)",
+  "uploadProxyUrl": "URL прокси-сервера для загрузки файлов",
+  "uploadProxyUrlPlaceholder": "Пожалуйста, введите URL прокси-сервера для загрузки файлов (необязательно)",
   "followTheSystem": "Следовать системе",
   "speechRecognition": "Распознавание речи",
   "speechSynthesis": "Синтез речи",
@@ -44,5 +45,23 @@
   "llmModel": "LLM Модель",
   "voiceServer": "Голосовое обслуживание",
   "uploadTooltip": "Загрузка файлов, поддерживает изображения, аудио, видео и текстовые документы",
-  "imageUploadTooltip": "Поддержка загрузки изображений"
+  "imageUploadTooltip": "Поддержка загрузки изображений",
+  "resend": "Переслать",
+  "regenerate": "Пересмотреть",
+  "edit": "Редактировать",
+  "delete": "Удалить",
+  "speak": "Чтение вслух",
+  "modelParams": "Параметры модели",
+  "temperature": "Случайность",
+  "maxOutputTokens": "Ограничение на один ответ за раз",
+  "safety": "Уровень блокировки",
+  "default": "По умолчанию",
+  "none": "Ничего",
+  "low": "Низкий",
+  "middle": "Средний",
+  "high": "Высокий",
+  "pwaInstall": "Установить приложение браузера (PWA)",
+  "autoStopRecord": "Автоматическое завершение записи",
+  "settingEnable": "Включено",
+  "settingDisable": "Отключено"
 }

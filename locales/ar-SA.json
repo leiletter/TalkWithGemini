@@ -3,7 +3,6 @@
   "status": {
     "thinking": "التفكير"
   },
-  "regenerateAnswer": "إعادة توليد الإجابة",
   "clearChatContent": "مسح محتوى المحادثة",
   "chatMode": "وضع الدردشة",
   "voiceMode": "وضع الصوت",
@@ -18,6 +17,8 @@
   "geminiKeyPlaceholder": "يرجى إدخال مفتاح Gemini الخاص بك",
   "apiProxyUrl": "عنوان URL للوكيل البرمجي للواجهة البرمجية للتطبيقات",
   "apiProxyUrlPlaceholder": "يرجى إدخال عنوان URL للوكيل البرمجي للواجهة البرمجية (اختياري)",
+  "uploadProxyUrl": "رابط وكيل تحميل الملفات",
+  "uploadProxyUrlPlaceholder": "الرجاء إدخال رابط وكيل تحميل الملفات (اختياري)",
   "followTheSystem": "اتبع النظام",
   "speechRecognition": "التعرف على الكلام",
   "speechSynthesis": "توليف الكلام",
@@ -44,5 +45,23 @@
   "llmModel": "نموذج LLM",
   "voiceServer": "خدمة الصوت",
   "uploadTooltip": "قم بتحميل الملفات، يدعم الصور، الصوتيات، الفيديوهات ومستندات النصوص",
-  "imageUploadTooltip": "دعم تحميل الصور"
+  "imageUploadTooltip": "دعم تحميل الصور",
+  "resend": "إعادة الإرسال",
+  "regenerate": "إعادة التفكير",
+  "edit": "تحرير",
+  "delete": "حذف",
+  "speak": "قراءة بصوت عالٍ",
+  "modelParams": "معلمات النموذج",
+  "temperature": "عشوائية",
+  "maxOutputTokens": "الحد الأقصى للرد مرة واحدة",
+  "safety": "مستوى التصفية",
+  "default": "افتراضي",
+  "none": "لا شيء",
+  "low": "منخفض",
+  "middle": "متوسط",
+  "high": "مرتفع",
+  "pwaInstall": "تثبيت تطبيق المتصفح(PWA)",
+  "autoStopRecord": "إنهاء التسجيل تلقائيًا",
+  "settingEnable": "تم التفعيل",
+  "settingDisable": "غير مفعل"
 }
