@@ -434,9 +434,22 @@ export default function Home() {
     [fetchAnswer, handleResponse, handleError, executingPlugins],
   )
 
+  const checkAccessStatus = useCallback(() => {
+    const { isProtected, password, apiKey } = useSettingStore.getState()
+    const isProtectedMode = isProtected && password === '' && apiKey === ''
+    const isStaticMode = BUILD_MODE === 'export' && apiKey === ''
+    if (isProtectedMode || isStaticMode) {
+      setSetingOpen(true)
+      return false
+    } else {
+      return true
+    }
+  }, [])
+
   const handleSubmit = useCallback(
     async (text: string): Promise<void> => {
-      if (text === '') return Promise.reject(false)
+      if (!checkAccessStatus()) return
+      if (text === '') return
       const { talkMode, model } = useSettingStore.getState()
       const { files, clear: clearAttachment } = useAttachmentStore.getState()
       const { summary, add: addMessage } = useMessageStore.getState()
@@ -516,11 +529,12 @@ export default function Home() {
         },
       })
     },
-    [isOldVisionModel, fetchAnswer, handleResponse, handleFunctionCall, handleError],
+    [isOldVisionModel, fetchAnswer, handleResponse, handleFunctionCall, handleError, checkAccessStatus],
   )
 
   const handleResubmit = useCallback(
     async (id: string) => {
+      if (!checkAccessStatus()) return false
       const { model } = useSettingStore.getState()
       const { messages, revoke: rovokeMessage } = useMessageStore.getState()
       if (id !== 'error') {
@@ -548,7 +562,7 @@ export default function Home() {
         },
       })
     },
-    [fetchAnswer, handleResponse, handleFunctionCall, handleError],
+    [fetchAnswer, handleResponse, handleFunctionCall, handleError, checkAccessStatus],
   )
 
   const handleCleanMessage = useCallback(() => {
@@ -560,18 +574,6 @@ export default function Home() {
   const updateTalkMode = useCallback((type: 'chat' | 'voice') => {
     const { update } = useSettingStore.getState()
     update({ talkMode: type })
-  }, [])
-
-  const checkAccessStatus = useCallback(() => {
-    const { isProtected, password, apiKey } = useSettingStore.getState()
-    const isProtectedMode = isProtected && password === '' && apiKey === ''
-    const isStaticMode = BUILD_MODE === 'export' && apiKey === ''
-    if (isProtectedMode || isStaticMode) {
-      setSetingOpen(true)
-      return false
-    } else {
-      return true
-    }
   }, [])
 
   const handleRecorder = useCallback(() => {
@@ -744,14 +746,16 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (isOldVisionModel || '__TAURI__' in window) {
+    if (isOldVisionModel || BUILD_MODE === 'export' || '__TAURI__' in window) {
       setEnablePlugin(false)
     }
   }, [isOldVisionModel])
 
   useLayoutEffect(() => {
-    const settings = useSettingStore.getState()
-    if (sidebarState !== settings.sidebarState) toggleSidebar()
+    const setting = useSettingStore.getState()
+    if (sidebarState === 'collapsed' && setting.sidebarState === 'expanded') {
+      toggleSidebar()
+    }
   }, [sidebarState, toggleSidebar])
 
   useLayoutEffect(() => {
@@ -776,7 +780,7 @@ export default function Home() {
           <div className="ml-2 font-bold leading-10 max-sm:ml-1 max-sm:leading-8">Gemini Next Chat</div>
         </div>
         <div className="flex items-center gap-1">
-          <a href="https://github.com/Amery2010/TalkWithGemini" target="_blank">
+          <a href="https://github.com/u14app/gemini-next-chat" target="_blank">
             <Button className="h-8 w-8" title={t('github')} variant="ghost" size="icon">
               <Github className="h-5 w-5" />
             </Button>
@@ -822,7 +826,7 @@ export default function Home() {
               >
                 <div
                   className={cn(
-                    'relative flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80',
+                    'relative flex gap-3 p-4 pb-1 hover:bg-gray-50/80 dark:hover:bg-gray-900/80',
                     msg.role === 'user' && chatLayout === 'chat' ? 'flex-row-reverse text-right' : '',
                   )}
                 >
@@ -832,7 +836,7 @@ export default function Home() {
             ))}
             {isThinking ? (
               <div className="group text-slate-500 transition-colors last:text-slate-800 hover:text-slate-800 dark:last:text-slate-400 dark:hover:text-slate-400 max-sm:hover:bg-transparent">
-                <div className="flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80">
+                <div className="flex gap-3 p-4 pb-1 hover:bg-gray-50/80 dark:hover:bg-gray-900/80">
                   <MessageItem id="message" role="model" parts={[{ text: message }]} />
                 </div>
               </div>
@@ -855,7 +859,7 @@ export default function Home() {
               <div className="group text-slate-500 transition-colors last:text-slate-800 hover:text-slate-800 dark:last:text-slate-400 dark:hover:text-slate-400 max-sm:hover:bg-transparent">
                 <div
                   className={cn(
-                    'relative flex gap-3 p-4 hover:bg-gray-50/80 dark:hover:bg-gray-900/80',
+                    'relative flex gap-3 p-4 pb-1 hover:bg-gray-50/80 dark:hover:bg-gray-900/80',
                     chatLayout === 'chat' ? 'flex-row-reverse text-right' : '',
                   )}
                 >
@@ -884,12 +888,14 @@ export default function Home() {
       <div className="flex w-full max-w-screen-md items-end gap-2 bg-background px-4 pb-8 pt-2 max-sm:p-2 max-sm:pb-3 landscape:max-md:pb-4">
         {enablePlugin ? <PluginList /> : null}
         <div
-          className="relative box-border flex w-full flex-1 rounded-md border border-input bg-[hsl(var(--background))] py-1 max-sm:py-0"
+          className="relative box-border flex w-full flex-1 flex-col rounded-md border border-input bg-[hsl(var(--background))] py-1 max-sm:py-0"
           onPaste={handlePaste}
           onDrop={handleDrop}
           onDragOver={(ev) => ev.preventDefault()}
         >
-          <AttachmentArea className="m-2 mt-0 max-h-32 overflow-y-auto border-b border-dashed pb-2" />
+          <div className="p-2 pb-0 pt-1 empty:p-0 max-sm:pt-2">
+            <AttachmentArea className="max-h-32 w-full overflow-y-auto border-b border-dashed pb-2" />
+          </div>
           <textarea
             autoFocus
             className={cn(

@@ -23,7 +23,7 @@ import locales from '@/constant/locales'
 import { Model } from '@/constant/model'
 import { useSettingStore } from '@/store/setting'
 import { useModelStore } from '@/store/model'
-import { toPairs, values, has, omitBy, isFunction } from 'lodash-es'
+import { toPairs, values, keys, omitBy, isFunction } from 'lodash-es'
 
 import pkg from '@/package.json'
 
@@ -45,7 +45,7 @@ const formSchema = z.object({
   model: z.string(),
   maxHistoryLength: z.number().gte(0).lte(50).optional().default(0),
   topP: z.number().gte(0).lte(1).default(0.95),
-  topK: z.number().gte(0).lte(128).default(64),
+  topK: z.number().gte(0).lte(128).default(40),
   temperature: z.number().gte(0).lte(1).default(1),
   maxOutputTokens: z.number().gte(0).lte(8192).default(8192),
   safety: z.enum(['none', 'low', 'middle', 'high']).default('none'),
@@ -54,6 +54,8 @@ const formSchema = z.object({
   ttsVoice: z.string().optional(),
   autoStopRecord: z.boolean().default(false),
 })
+
+let cachedModelList = false
 
 function Setting({ open, hiddenTalkPanel, onClose }: SettingProps) {
   const { t } = useTranslation()
@@ -71,16 +73,18 @@ function Setting({ open, hiddenTalkPanel, onClose }: SettingProps) {
     const { update } = useSettingStore.getState()
 
     if (modelStore.models.length > 0) {
+      const models = values(Model)
       modelStore.models.forEach((item) => {
-        if (!has(Model, item.displayName)) {
-          Model[item.displayName] = item.name.replace('models/', '')
+        const modelName = item.name.replace('models/', '')
+        if (!models.includes(modelName)) {
+          Model[modelName] = item.displayName
         }
       })
     }
 
     let modelList: string[] = []
     let defaultModel = 'gemini-1.5-flash-latest'
-    const defaultModelList: string[] = Object.values(Model)
+    const defaultModelList: string[] = keys(Model)
     const userModels: string[] = GEMINI_MODEL_LIST ? GEMINI_MODEL_LIST.split(',') : []
 
     userModels.forEach((modelName) => {
@@ -157,12 +161,13 @@ function Setting({ open, hiddenTalkPanel, onClose }: SettingProps) {
   )
 
   useLayoutEffect(() => {
-    if (open) {
+    if (open && !cachedModelList) {
       const { update } = useModelStore.getState()
       const { apiKey, apiProxy, password } = useSettingStore.getState()
       fetchModels({ apiKey, apiProxy, password }).then((models) => {
         if (models.length > 0) {
           update(models)
+          cachedModelList = true
         }
       })
     }
@@ -272,10 +277,10 @@ function Setting({ open, hiddenTalkPanel, onClose }: SettingProps) {
                       (
                       <a
                         className="underline underline-offset-2"
-                        href="https://github.com/Amery2010/TalkWithGemini/releases"
+                        href="https://github.com/u14app/gemini-next-chat/releases"
                         target="_blank"
                       >
-                        检查更新
+                        {t('checkForUpdate')}
                       </a>
                       )
                     </small>
@@ -350,7 +355,7 @@ function Setting({ open, hiddenTalkPanel, onClose }: SettingProps) {
                           <SelectTrigger className="col-span-3">
                             <SelectValue placeholder={t('selectDefaultModel')} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="text-left">
                             {modelOptions.map((name) => {
                               return (
                                 <SelectItem key={name} value={name}>

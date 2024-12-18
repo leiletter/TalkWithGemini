@@ -6,13 +6,12 @@
 ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/xiangfa/talk-with-gemini/latest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/xiangfa/talk-with-gemini)
 ![GitHub License](https://img.shields.io/github/license/u14app/gemini-next-chat)
-[![Discord](https://img.shields.io/discord/1245639658604593152)](https://discord.gg/tUyZNd7C)
 
 一键免费部署您的私人 Gemini 应用, 支持 Gemini 1.5 Pro、Gemini 1.5 Flash、Gemini Pro 和 Gemini Pro Vision 模型。
 
 [English](./README.md) · **简体中文**
 
-[![TalkWithGemini](https://trendshift.io/api/badge/repositories/10384)](https://trendshift.io/repositories/10384)
+[![GeminiNextChat](https://trendshift.io/api/badge/repositories/10384)](https://trendshift.io/repositories/10384)
 
 [![Gemini](https://img.shields.io/badge/Gemini-8E75B2?style=flat&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
 [![Next](https://img.shields.io/badge/Next.js-000000?style=flat&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
@@ -33,7 +32,7 @@
 [MacOS-image]: https://img.shields.io/badge/-MacOS-black?logo=apple
 [Linux-image]: https://img.shields.io/badge/-Linux-333?logo=ubuntu
 
-**分享 TalkWithGemini 仓库**
+**分享 GeminiNextChat 仓库**
 
 [![][share-x-shield]][share-x-link]
 [![][share-telegram-shield]][share-telegram-link]
@@ -41,10 +40,7 @@
 [![][share-reddit-shield]][share-reddit-link]
 [![][share-weibo-shield]][share-weibo-link]
 [![][share-mastodon-shield]][share-mastodon-link]
-[![][share-linkedin-shield]][share-linkedin-link]
 
-[share-linkedin-link]: https://linkedin.com/feed
-[share-linkedin-shield]: https://img.shields.io/badge/-share%20on%20linkedin-black?labelColor=black&logo=linkedin&logoColor=white&style=flat-square
 [share-mastodon-link]: https://mastodon.social/share?text=Check%20this%20GitHub%20repository%20out%20GeminiNextChat%20-%20An%20open-source%2C%20extensible%20(Function%20Calling)%2C%20high-performance%20gemini%20chatbot%20framework.%20It%20supports%20one-click%20free%20deployment%20of%20your%20private%20Gemini%20web%20application.%20https%3A%2F%2Fgithub.com%2Fu14app%2Fgemini-next-chat%20%23chatbot%20%23gemini
 [share-mastodon-shield]: https://img.shields.io/badge/-share%20on%20mastodon-black?labelColor=black&logo=mastodon&logoColor=white&style=flat-square
 [share-reddit-link]: https://www.reddit.com/submit?title=Check%20this%20GitHub%20repository%20out%20GeminiNextChat%20-%20An%20open-source%2C%20extensible%20(Function%20Calling)%2C%20high-performance%20gemini%20chatbot%20framework.%20It%20supports%20one-click%20free%20deployment%20of%20your%20private%20Gemini%20web%20application.%20https%3A%2F%2Fgithub.com%2Fu14app%2Fgemini-next-chat
@@ -57,8 +53,6 @@
 [share-whatsapp-shield]: https://img.shields.io/badge/-share%20on%20whatsapp-black?labelColor=black&logo=whatsapp&logoColor=white&style=flat-square
 [share-x-link]: https://x.com/intent/tweet?hashtags=chatbot%2CchatGPT%2CopenAI&text=Check%20this%20GitHub%20repository%20out%20GeminiNextChat%20-%20An%20open-source%2C%20extensible%20(Function%20Calling)%2C%20high-performance%20gemini%20chatbot%20framework.%20It%20supports%20one-click%20free%20deployment%20of%20your%20private%20Gemini%20web%20application.%20https%3A%2F%2Fgithub.com%2Fu14app%2Fgemini-next-chat
 [share-x-shield]: https://img.shields.io/badge/-share%20on%20x-black?labelColor=black&logo=x&logoColor=white&style=flat-square
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fu14app%2Fgemini-next-chat&project-name=gemini-next-chat&env=GEMINI_API_KEY&env=ACCESS_PASSWORD&repository-name=gemini-next-chat)
 
 ![cover](./public/screenshots/screenshots.png)
 
@@ -296,16 +290,16 @@ vercel 部署后生成的域名在几年前就已经被国内网络屏蔽，但�
 
 ### 技术栈
 
-[Next.js](https://nextjs.org/)
-[Shadcn UI](https://ui.shadcn.com/)
-[Tailwindcss](https://tailwindcss.com/)
-[Zustand](https://zustand-demo.pmnd.rs/)
+- [Next.js](https://nextjs.org/)
+- [Shadcn UI](https://ui.shadcn.com/)
+- [Tailwindcss](https://tailwindcss.com/)
+- [Zustand](https://zustand-demo.pmnd.rs/)
 
 ### 灵感来源
 
-[Lobe Chat](https://github.com/lobehub/lobe-chat)
-[ChatGPT-Next-Web](https://github.com/ChatGPTNextWeb/ChatGPT-Next-Web)
-[GeminiProChat](https://github.com/babaohuang/GeminiProChat)
+- [Lobe Chat](https://github.com/lobehub/lobe-chat)
+- [ChatGPT-Next-Web](https://github.com/ChatGPTNextWeb/ChatGPT-Next-Web)
+- [GeminiProChat](https://github.com/babaohuang/GeminiProChat)
 
 ## 收藏历史
 
